@@ -1,11 +1,9 @@
-date,output_kwh,temperature_c,humidity_percent
-2024-06-01,4200,25,45
-2024-06-02,4150,26,50
-2024-06-03,4000,27,48
-2024-06-04,3800,28,55
-2024-06-05,3000,30,60
-2024-06-06,4100,29,53
-2024-06-07,4300,27,47
-2024-06-08,4400,26,46
-2024-06-09,3900,28,54
-2024-06-10,3950,29,52
+import pandas as pd
+
+# Load your uploaded file
+file_path = '/mnt/data/CSV - Sheet1.csv'
+df = pd.read_csv(file_path)
+
+# Show the first few rows and columns
+print(df.head())
+print(df.columns)
