@@ -1,1 +1,58 @@
-streamlit>=1.26.0
+import sys
+import subprocess
+
+# Auto-install function
+def install_if_missing(package):
+    try:
+        __import__(package)
+    except ImportError:
+        print(f"🔄 Installing missing package: {package}...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# Ensure required packages are present
+install_if_missing("pandas")
+install_if_missing("scikit-learn")
+
+import pandas as pd
+from sklearn.ensemble import IsolationForest
+
+# === Load dataset ===
+df = pd.read_csv("cleaned_data.csv")
+df['date'] = pd.to_datetime(df['date'])
+
+# === Feature engineering ===
+df['rolling_7d'] = df['output_kwh'].rolling(window=7, min_periods=1).mean()
+df['weekday'] = df['date'].dt.weekday
+df['lag_1'] = df['output_kwh'].shift(1)
+df.dropna(inplace=True)
+
+# === Model training ===
+features = ['output_kwh', 'rolling_7d', 'weekday', 'lag_1']
+model = IsolationForest(
+    contamination=0.03,
+    n_estimators=150,
+    max_samples='auto',
+    random_state=42
+)
+model.fit(df[features])
+
+# === Predictions ===
+df['anomaly'] = model.predict(df[features]) == -1
+df[['date', 'output_kwh', 'anomaly']].to_csv("predictions.csv", index=False)
+
+# === Summary generation ===
+avg_output = df['output_kwh'].mean()
+peak_output = df['output_kwh'].max()
+anomaly_dates = df[df['anomaly']]['date'].dt.strftime('%Y-%m-%d').tolist()
+
+summary = (
+    f"Weekly Performance Summary:\n"
+    f"- Average output: {avg_output:.2f} kWh\n"
+    f"- Peak output: {peak_output:.2f} kWh\n"
+    f"- Anomaly dates: {', '.join(anomaly_dates) if anomaly_dates else 'None'}"
+)
+
+with open("weekly_summary.txt", "w") as f:
+    f.write(summary)
+
+print("✅ Pipeline complete! Files saved: predictions.csv & weekly_summary.txt")
