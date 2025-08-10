@@ -4,7 +4,6 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
 from datetime import datetime
-import random
 
 # Path to your Google Drive Zapier watch folder
 DRIVE_FOLDER = r"G:\My Drive\Zapier Watch"
@@ -48,14 +47,13 @@ if uploaded_file is not None:
         output_message = f"Output drop on {first_date}\nValue: {first_value} kWh"
         weekly_summary = f"Weekly Summary: Anomalies detected on {', '.join(anomaly_dates)}."
 
-        # Mock AI-generated summary (random sentence)
-        summaries = [
-            "Energy output experienced unusual fluctuations, suggesting possible equipment calibration issues.",
-            "Detected lower-than-normal energy production on specific days, possibly due to environmental conditions.",
-            "Patterns indicate irregular performance, worth investigating for maintenance needs.",
-            "Spikes and drops in energy suggest inconsistent system efficiency during the week."
-        ]
-        ai_summary = f"AI Summary: {random.choice(summaries)}"
+        # Mock AI-generated summary (custom text)
+        ai_summary = (
+            f"Based on the analysis, unusual drops in energy output were detected on "
+            f"{', '.join(anomaly_dates)}. The most significant occurred on {first_date} "
+            f"with an output of {first_value} kWh, suggesting potential equipment or "
+            f"environmental issues. Further investigation is recommended."
+        )
 
     else:
         output_message = "No anomalies detected."
@@ -91,6 +89,10 @@ if uploaded_file is not None:
         df_to_save = pd.DataFrame({"message": ["No anomalies found"]})
     else:
         df_to_save = anomalies[["date", "output_kwh"]]
+        # Append the messages to CSV for Zapier
+        df_to_save["output_message"] = output_message
+        df_to_save["weekly_summary"] = weekly_summary
+        df_to_save["ai_summary"] = ai_summary
 
     df_to_save.to_csv(alerts_path, index=False)
 
