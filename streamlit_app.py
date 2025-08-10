@@ -1,61 +1,45 @@
-import streamlit as st
+import os
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.ensemble import IsolationForest
+import streamlit as st
+from datetime import datetime
 
-st.title("⚡ Energy AI Dashboard")
+# Create a temporary folder (inside the app directory)
+LOCAL_FOLDER = "alerts_temp"
+os.makedirs(LOCAL_FOLDER, exist_ok=True)
 
-uploaded = st.file_uploader("Upload Energy Data (CSV)", type=["csv"])
+st.title("Energy Data Anomaly Detection")
 
-if uploaded:
-    df = pd.read_csv(uploaded)
+uploaded_file = st.file_uploader("Upload Energy Data CSV", type=["csv"])
 
-    # Basic validation
-    if 'date' not in df.columns or 'output_kwh' not in df.columns:
-        st.error("CSV must contain 'date' and 'output_kwh' columns.")
-        st.stop()
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    st.write("Data preview:")
+    st.dataframe(df.head())
 
-    df['date'] = pd.to_datetime(df['date'])
-
-    st.subheader("Energy Output Over Time")
-    st.line_chart(df.set_index('date')['output_kwh'])
-
-    # Anomaly detection
-    model = IsolationForest(contamination=0.05, random_state=42)
-    df['anomaly'] = model.fit_predict(df[['output_kwh']]) == -1
-    anomalies = df[df['anomaly']]
-
-    # Dynamic summary
-    if not anomalies.empty:
-        anomaly_dates = ", ".join(anomalies['date'].dt.strftime('%b %d').tolist())
+    # Dummy anomaly detection
+    if "output_kwh" in df.columns and "date" in df.columns:
+        anomalies = df[df["output_kwh"] > 1000][["date", "output_kwh"]]
     else:
-        anomaly_dates = "None"
+        st.error("CSV missing required columns: 'date' and 'output_kwh'")
+        anomalies = pd.DataFrame()
 
-    avg_kwh = df['output_kwh'].mean()
-    peak_kwh = df['output_kwh'].max()
-    summary = f"Avg = {avg_kwh:.1f} kWh, Anomalies = {anomaly_dates}, Peak = {peak_kwh:.1f} kWh"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    alerts_filename = f"alerts_{timestamp}.csv"
+    alerts_path = os.path.join(LOCAL_FOLDER, alerts_filename)
 
-    st.subheader("Weekly Summary")
-    st.markdown(f"**{summary}**")
-
-    # Visualization with anomalies highlighted
-    st.subheader("Energy Output with Anomalies")
-    fig, ax = plt.subplots()
-    ax.plot(df['date'], df['output_kwh'], label='Output (kWh)')
-    if not anomalies.empty:
-        ax.scatter(anomalies['date'], anomalies['output_kwh'], color='red', label='Anomaly')
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Output (kWh)")
-    ax.set_title("Energy Output and Anomalies")
-    ax.legend()
-    st.pyplot(fig)
-
-    # Anomaly table
-    st.subheader("Detected Anomalies")
-    if not anomalies.empty:
-        st.write(anomalies[['date', 'output_kwh']])
+    if anomalies.empty:
+        df_to_save = pd.DataFrame({"message": ["No anomalies found"]})
     else:
-        st.write("No anomalies detected.")
+        df_to_save = anomalies
 
+    df_to_save.to_csv(alerts_path, index=False)
+
+    st.success(f"Alerts saved locally: {alerts_path}")
+    st.download_button(
+        label="Download Alerts CSV",
+        data=df_to_save.to_csv(index=False).encode('utf-8'),
+        file_name=alerts_filename,
+        mime='text/csv'
+    )
 else:
-    st.info("Please upload a CSV file with 'date' and 'output_kwh' columns to get started.")
+    st.info("Please upload a CSV file to detect anomalies.")
