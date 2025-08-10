@@ -4,10 +4,8 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
 from datetime import datetime
-import requests  # for optional Zapier integration
-from openai import OpenAI  # if using OpenAI for AI summary
 
-# Create a temporary folder to save alerts CSVs
+# Create a temporary folder (inside the app directory) to save alerts CSVs
 LOCAL_FOLDER = "alerts_temp"
 os.makedirs(LOCAL_FOLDER, exist_ok=True)
 
@@ -48,43 +46,27 @@ if uploaded_file is not None:
 
         output_message = f"Output drop on {first_date}\nValue: {first_value} kWh"
         weekly_summary = f"Weekly Summary: Anomalies detected on {', '.join(anomaly_dates)}."
+
+        # Mock AI-generated summary
+        ai_summary = (
+            f"Based on the analysis, unusual drops in energy output were detected on "
+            f"{', '.join(anomaly_dates)}. The most significant occurred on {first_date} "
+            f"with an output of {first_value} kWh, suggesting potential equipment or "
+            f"environmental issues. Further investigation is recommended."
+        )
     else:
         output_message = "No anomalies detected."
         weekly_summary = ""
+        ai_summary = "No significant anomalies detected. Energy output remained within expected ranges."
 
     st.subheader("Anomaly Summary")
     st.text(output_message)
     st.text(weekly_summary)
 
-    # -----------------------------
-    # AI-generated summary section
-    # -----------------------------
-    if "OPENAI_API_KEY" in os.environ:  # Only if API key is available
-        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        prompt = f"""
-        You are an energy monitoring assistant.
-        Summarize the following anomaly detection results for a weekly energy report in plain language.
+    st.subheader("AI-Generated Summary")
+    st.write(ai_summary)
 
-        Output message: {output_message}
-        Weekly summary: {weekly_summary}
-
-        Keep it concise and easy to understand.
-        """
-        try:
-            ai_response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5
-            )
-            ai_summary = ai_response.choices[0].message.content.strip()
-            st.subheader("AI-Generated Summary")
-            st.write(ai_summary)
-        except Exception as e:
-            st.warning(f"AI summary could not be generated: {e}")
-    else:
-        st.info("Set the OPENAI_API_KEY environment variable to enable AI-generated summaries.")
-
-    # Plot anomalies on the graph
+    # Plot anomalies
     st.subheader("Anomaly Visualization")
     fig, ax = plt.subplots()
     ax.plot(df["date"], df["output_kwh"], label="Output")
@@ -95,11 +77,11 @@ if uploaded_file is not None:
     ax.legend()
     st.pyplot(fig)
 
-    # Show anomalies table
+    # Anomaly table
     st.subheader("Anomaly Table")
     st.dataframe(anomalies[["date", "output_kwh"]])
 
-    # Save alerts CSV locally and provide download button
+    # Save alerts CSV locally
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     alerts_filename = f"alerts_{timestamp}.csv"
     alerts_path = os.path.join(LOCAL_FOLDER, alerts_filename)
@@ -118,5 +100,6 @@ if uploaded_file is not None:
         file_name=alerts_filename,
         mime='text/csv'
     )
+
 else:
     st.info("Please upload a CSV file to detect anomalies.")
