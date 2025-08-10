@@ -84,7 +84,8 @@ if uploaded_file is not None:
     # Save alerts CSV locally
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     alerts_filename = f"alerts_{timestamp}.csv"
-    alerts_path = os.path.join(LOCAL_FOLDER, alerts_filename)
+    drive_folder = r"G:\My Drive\Zapier Watch"
+    alerts_path = os.path.join(drive_folder, alerts_filename)
 
     if anomalies.empty:
         df_to_save = pd.DataFrame({"message": ["No anomalies found"]})
