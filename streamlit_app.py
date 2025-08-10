@@ -4,15 +4,12 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
 from datetime import datetime
-import requests
-from openai import OpenAI
+import requests  # for optional Zapier integration
+from openai import OpenAI  # if using OpenAI for AI summary
 
 # Create a temporary folder to save alerts CSVs
 LOCAL_FOLDER = "alerts_temp"
 os.makedirs(LOCAL_FOLDER, exist_ok=True)
-
-# Zapier webhook URL (set as environment variable for security)
-ZAPIER_WEBHOOK_URL = os.environ.get("ZAPIER_WEBHOOK_URL")
 
 st.title("Energy Data Anomaly Detection & AI Dashboard")
 
@@ -62,8 +59,7 @@ if uploaded_file is not None:
     # -----------------------------
     # AI-generated summary section
     # -----------------------------
-    ai_summary = ""
-    if "OPENAI_API_KEY" in os.environ:
+    if "OPENAI_API_KEY" in os.environ:  # Only if API key is available
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         prompt = f"""
         You are an energy monitoring assistant.
@@ -87,25 +83,6 @@ if uploaded_file is not None:
             st.warning(f"AI summary could not be generated: {e}")
     else:
         st.info("Set the OPENAI_API_KEY environment variable to enable AI-generated summaries.")
-
-    # -----------------------------
-    # Send data to Zapier webhook
-    # -----------------------------
-    if ZAPIER_WEBHOOK_URL:
-        try:
-            payload = {
-                "output_message": output_message,
-                "weekly_summary": weekly_summary,
-                "ai_summary": ai_summary,
-                "anomaly_count": len(anomalies),
-                "timestamp": datetime.now().isoformat()
-            }
-            requests.post(ZAPIER_WEBHOOK_URL, json=payload)
-            st.success("Data sent to Zapier webhook successfully.")
-        except Exception as e:
-            st.warning(f"Could not send to Zapier: {e}")
-    else:
-        st.info("Set ZAPIER_WEBHOOK_URL environment variable to enable Zapier integration.")
 
     # Plot anomalies on the graph
     st.subheader("Anomaly Visualization")
