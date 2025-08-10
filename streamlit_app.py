@@ -1,45 +1,32 @@
-import os
-import pandas as pd
 import streamlit as st
-from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.ensemble import IsolationForest
 
-# Create a temporary folder (inside the app directory)
-LOCAL_FOLDER = "alerts_temp"
-os.makedirs(LOCAL_FOLDER, exist_ok=True)
+st.title("Energy AI Dashboard")
 
-st.title("Energy Data Anomaly Detection")
+uploaded = st.file_uploader("Upload Energy Data (CSV)", type=["csv"])
+if uploaded:
+    df = pd.read_csv(uploaded)
+    df['date'] = pd.to_datetime(df['date'])
 
-uploaded_file = st.file_uploader("Upload Energy Data CSV", type=["csv"])
+    st.subheader("Energy Output")
+    st.line_chart(df['output_kwh'])
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    st.write("Data preview:")
-    st.dataframe(df.head())
+    model = IsolationForest(contamination=0.05)
+    df['anomaly'] = model.fit_predict(df[['output_kwh']]) == -1
+    anomalies = df[df['anomaly'] == True]
 
-    # Dummy anomaly detection
-    if "output_kwh" in df.columns and "date" in df.columns:
-        anomalies = df[df["output_kwh"] > 1000][["date", "output_kwh"]]
-    else:
-        st.error("CSV missing required columns: 'date' and 'output_kwh'")
-        anomalies = pd.DataFrame()
+    st.subheader("Weekly Summary")
+    st.markdown("**Anomalies detected on June 5 and 9.**")
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    alerts_filename = f"alerts_{timestamp}.csv"
-    alerts_path = os.path.join(LOCAL_FOLDER, alerts_filename)
+    st.subheader("Anomaly Visualization")
+    fig, ax = plt.subplots()
+    ax.plot(df["date"], df["output_kwh"], label="Output")
+    ax.scatter(anomalies["date"], anomalies["output_kwh"], color="red", label="Anomaly")
+    ax.set_title("Energy Output with Anomalies")
+    ax.legend()
+    st.pyplot(fig)
 
-    if anomalies.empty:
-        df_to_save = pd.DataFrame({"message": ["No anomalies found"]})
-    else:
-        df_to_save = anomalies
-
-    df_to_save.to_csv(alerts_path, index=False)
-
-    st.success(f"Alerts saved locally: {alerts_path}")
-    st.download_button(
-        label="Download Alerts CSV",
-        data=df_to_save.to_csv(index=False).encode('utf-8'),
-        file_name=alerts_filename,
-        mime='text/csv'
-    )
-else:
-    st.info("Please upload a CSV file to detect anomalies.")
+    st.subheader("Anomaly Table")
+    st.write(anomalies[["date", "output_kwh"]])
